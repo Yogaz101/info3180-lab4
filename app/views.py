@@ -8,7 +8,8 @@ import os
 from app import app
 from flask import render_template, request, redirect, url_for, flash, session, abort
 from werkzeug.utils import secure_filename
-
+from flask import send_from_directory
+from .forms import UploadForm
 
 ###
 # Routing for your application.
@@ -28,19 +29,32 @@ def about():
 
 @app.route('/upload', methods=['POST', 'GET'])
 def upload():
+    form = UploadForm()
     if not session.get('logged_in'):
         abort(401)
-
+    if request.method == 'POST':
+        # check if the post request has the file part
+        
     # Instantiate your form class
 
     # Validate file upload on submit
-    if request.method == 'POST':
+    #if request.method == 'POST':
         # Get file data and save to your uploads folder
+        if form.validate_on_submit():
+            image = form.file.data
+            
+            filename = secure_filename(image.filename)
+            image.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            
+            flash('File Saved', 'successfully')
+            return redirect(url_for('home'))
+    flash_errors(form)
+    return render_template('upload.html', form=form)
 
-        flash('File Saved', 'success')
-        return redirect(url_for('home'))
+    if request.method == 'GET':
+        return render_template('upload.html', form=form)
 
-    return render_template('upload.html')
+    #return render_template('upload.html')
 
 
 @app.route('/login', methods=['POST', 'GET'])
@@ -76,6 +90,12 @@ def flash_errors(form):
                 getattr(form, field).label.text,
                 error
 ), 'danger')
+
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @app.route('/<file_name>.txt')
 def send_text_file(file_name):
